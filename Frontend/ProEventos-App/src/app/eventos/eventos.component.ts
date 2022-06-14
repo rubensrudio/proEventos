@@ -1,5 +1,9 @@
-import { HttpClient } from '@angular/common/http';
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, TemplateRef } from '@angular/core';
+import { BsModalRef, BsModalService } from 'ngx-bootstrap/modal';
+import { NgxSpinnerService } from 'ngx-spinner';
+import { ToastrService } from 'ngx-toastr';
+import { Evento } from '../models/Evento';
+import { EventoService } from '../services/evento.service';
 
 @Component({
   selector: 'app-eventos',
@@ -8,45 +12,72 @@ import { Component, OnInit } from '@angular/core';
 })
 export class EventosComponent implements OnInit {
 
-  public eventos: any = [];
-  public eventosFiltrados: any = [];
+  public eventos: Evento[] = [];
+  public eventosFiltrados: Evento[] = [];
   public exibeImg = false;
-  private _filtroLista = '';
+  private filtroListado = '';
+
+  modalRef?: BsModalRef;
 
   public get filtroLista(): string {
-    return this._filtroLista;
+    return this.filtroListado;
   }
 
   public set filtroLista(value: string){
-    this._filtroLista = value;
+    this.filtroListado = value;
     this.eventosFiltrados = this.filtroLista ? this.filtrarEventos(this.filtroLista) : this.eventos;
   }
 
   constructor(
-    private http: HttpClient
-  ) { }
+    private eventoService: EventoService,
+    private modalService: BsModalService,
+    private notify: ToastrService,
+    private loading: NgxSpinnerService
+    )
+    { }
 
-  ngOnInit(): void {
+  public ngOnInit(): void {
+    this.loading.show();
     this.getEventos();
   }
 
-  public getEventos() {
-    this.http.get('https://localhost:5001/api/eventos').subscribe(
-      response =>
+  public getEventos(): void {
+    const observer =
+    {
+      next: (eventos: Evento[]) =>
       {
-        this.eventos = response;
-        this.eventosFiltrados = response;
+        this.eventos = eventos;
+        this.eventosFiltrados = eventos;
       },
-      error => console.log(error)
-    );
+      error: (error: any) =>
+      {
+        this.loading.hide();
+        this.notify.error('Erro ao carregar itens.', 'Erro!');
+      },
+      complete: () => this.loading.hide()
+    }
+    this.eventoService.getEventos().subscribe(observer);
   }
 
-  public filtrarEventos(filtrarPor: string): any {
+  public filtrarEventos(filtrarPor: string): Evento[] {
     filtrarPor = filtrarPor.toLocaleLowerCase();
     return this.eventos.filter(
       (evento: { tema: string; local: string; }) => evento.tema.toLocaleLowerCase().indexOf(filtrarPor) !== -1 ||
         evento.local.toLocaleLowerCase().indexOf(filtrarPor) !== -1
-    )
+    );
+  }
+
+  openModal(template: TemplateRef<any>) {
+    this.modalRef = this.modalService.show(template, {class: 'modal-sm'});
+  }
+
+  confirm(): void {
+    this.notify.success('Item excluído com sucesso.', 'Excluído!');
+    this.modalRef?.hide();
+  }
+
+  decline(): void {
+    this.modalRef?.hide();
   }
 
 }

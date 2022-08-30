@@ -17,6 +17,7 @@ export class EventoListaComponent implements OnInit {
   public eventosFiltrados: Evento[] = [];
   public exibeImg = false;
   private filtroListado = '';
+  eventoId = 0;
 
   modalRef?: BsModalRef;
 
@@ -40,10 +41,10 @@ export class EventoListaComponent implements OnInit {
 
   public ngOnInit(): void {
     this.loading.show();
-    this.getEventos();
+    this.carregarEventos();
   }
 
-  public getEventos(): void {
+  public carregarEventos(): void {
     const observer =
     {
       next: (eventos: Evento[]) =>
@@ -69,13 +70,25 @@ export class EventoListaComponent implements OnInit {
     );
   }
 
-  openModal(template: TemplateRef<any>) {
+  openModal(event: any, template: TemplateRef<any>, eventoId: number) {
+    event.stopPropagation();
+    this.eventoId = eventoId;
     this.modalRef = this.modalService.show(template, {class: 'modal-sm'});
   }
 
   confirm(): void {
-    this.notify.success('Item excluído com sucesso.', 'Excluído!');
+    this.loading.show();
     this.modalRef?.hide();
+    this.eventoService.deleteEventos(this.eventoId).subscribe({
+      next: (result: any) => {
+        this.notify.success('Item excluído com sucesso.', 'Excluído!');
+        this.carregarEventos();
+      },
+      error: (error: any) => {
+        this.notify.error(`Erro ao tentar deletar o evento ${this.eventoId}.`, 'Erro');
+        console.error(error);
+      }
+    }).add(() => this.loading.hide());
   }
 
   decline(): void {
